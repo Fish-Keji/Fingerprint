@@ -1,12 +1,57 @@
+
 # -*- coding: utf-8 -*-
 """
-Spyder Editor
+Created on Sat Feb  6 00:33:47 2016
 
-This is a temporary script file.
+@author: YuKeji
 """
-#载入python excel的操作包
+
+import re
+import datetime
+#更改读入txt文件的路径
+fd = open('/Users/YuKeji/Desktop/kaoqin/201601-1.txt','r', encoding='gbk')
+fd_data = fd.readlines()
+all_list = []
+#对从txt读出的每行进行操作
+for i in fd_data:
+    i_split = re.split('\n| ',i) #正则表达式按照空格和回车来拆分字符串
+    i_filter = filter(None, i_split) #去除列表中所有空字符
+    r = list(i_filter) #转换成列表
+    
+    if r == []:                           #忽略为空的list
+        pass
+    else:
+        if r[1] == '总时长':    
+            all_list.append(r)            #将表头附在all_list上
+        else:    
+            a = r[1].replace(':','.')     #调整工时的格式
+            r[1] = float(a)
+            r[2] = datetime.datetime.strptime(r[2],'%Y/%m/%d') #将日期从string变为date格式
+            all_list.append(r)            #将工时list附在all_list上
+fd.close()
+
 import xlrd
 import xlwt
+#新建一个excel,用来做数据透视
+all_list_excel = xlwt.Workbook()
+#在新建的excel中加入一个sheet，命名为all_list
+sheet_all_list = all_list_excel.add_sheet('all_list')
+for Index, Item in enumerate(all_list):
+    for index, item in enumerate(Item):
+        sheet_all_list.write(Index, index, item)
+all_list_excel.save('/Users/YuKeji/Desktop/kaoqin/all-list-excel.xls')
+import pandas as pd
+import numpy as np
+df = pd.read_excel('/Users/YuKeji/Desktop/kaoqin/all-list-excel.xls')
+df_pivot = pd.pivot_table(df,index=['姓名'],values=['总时长'], columns=['考勤日期'],aggfunc=[np.sum])
+#from pandas import DataFrame
+path_pivot = '/Users/YuKeji/Desktop/kaoqin/pivot.xlsx'
+sheet_pivot = 'sheet_pivot'
+writer = pd.ExcelWriter(path_pivot)
+df_pivot.to_excel(writer,sheet_pivot)
+writer.save()
+
+
 number_of_days = int(input('how many days set this month:')) + 1
 number_of_people = int(input('how many people:'))
 
@@ -41,9 +86,9 @@ new_excel = xlwt.Workbook()
 sheet_kaoqin = new_excel.add_sheet('kaoqin')
 
 #打开已经经过透视表整理的excel，赋给变量book1
-book1 = xlrd.open_workbook('/Users/YuKeji/Desktop/1.xlsx')
+book1 = xlrd.open_workbook(path_pivot)
 #找到book1中的Sheet2，这里有考勤的原始数据
-sheet1 = book1.sheet_by_name('Sheet2')
+sheet1 = book1.sheet_by_name(sheet_pivot)
 #初始三个变量，用于写入cell的迭代
 row_wt_init = 1 
 row_wt_init_name = 1
@@ -51,7 +96,7 @@ row_rd_init = 3
 #从book1的sheet2中读第一列的名字
 names = sheet1.col_values(0, 4, number_of_people+4)
 #从第4行读出日期
-row_date = sheet1.row_values(row_rd_init, 1, number_of_days)
+row_date = sheet1.row_values(row_rd_init-1, 1, number_of_days)
 #因为最终要变换为三行，故先将日期列表按照11，11，其余 来切片
 row_date_1 = row_date[:11]
 row_date_2 = row_date[11:22]
@@ -103,7 +148,8 @@ for i in range(row_rd_init+1, number_of_people+4):
     sheet_kaoqin.write(row_wt_init+6, 6, round(total/days_of_come, 2), style_3)#保留2位小数
         #若不是从第一天开始，就改实际天数为a
     row_wt_init += 8
-new_excel.save('/Users/YuKeji/Desktop/指纹统计.xls')
+#更改输出Excel文件的路径
+new_excel.save('/Users/YuKeji/Desktop/kaoqin/指纹统计201601.xls')
 
 
 
